@@ -1,0 +1,11 @@
+---
+- hosts:  localhost
+  become: yes
+  tasks:
+    - name: YUM Update
+      yum:
+        name:  "*"
+        state: latest
+    - name: Reboot server1
+      reboot:
+...
