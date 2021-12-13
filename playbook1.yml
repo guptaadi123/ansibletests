@@ -1,0 +1,44 @@
+---
+- hosts: k8s
+  vars_prompt:
+    - name: nodename
+      prompt: What is your node name you want to delete?
+      private: no
+  tasks:
+     - name: getting internal ip of node
+       shell: kubectl describe node  {{nodename}} | grep  InternalIP | awk '{print $2}'
+       register: y
+     - debug:
+        var: y[stdout]
+     - name: draining nodes
+       command: kubectl drain {{nodename}}  --force --delete-local-data --ignore-daemonsets
+     - name: deleting nodes
+       command: kubectl delete node {{nodename}}
+     - name: taking break so that all pod can terminate
+       pause:
+           minutes: 2
+     - name: checking pods
+       shell: kubectl get pods --all-namespaces -o wide --field-selector spec.nodeName={{nodename}} | wc -l
+       register: x
+     - name: checking conditions
+       debug:
+          msg: "Please look at pod of this node there is some error"
+       failed_when: '"No resources found" not   in x.stderr'
+     - name: stating to move foward
+       debug:
+          msg: "now we can terminate instance successfully"
+     - name: internal ip
+       debug:
+        var: y["stdout"]
+     - name: getting instance id
+       command: aws ec2 describe-instance --filter Name=private-ip-address,Values="{{y["stdout"]}}" --query 'Reservations[].Instances[].Instance'
+       register: id
+     - name: terminating instance
+       command: aws ec2 terminate-instances --instance-ids "{{id["stdout"]}}"
+     #     - name: running shell script
+#        script: [path of sh file]
+
+
+
+
+...
