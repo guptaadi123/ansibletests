@@ -1,0 +1,39 @@
+---
+- hosts: k8s
+  vars_prompt:
+    - name: nodename
+      prompt: What is your node name you want to delete?
+      private: no
+  tasks:
+     - name: draining nodes
+       command: kubectl drain {{nodename}}  --force --delete-local-data --ignore-daemonsets
+     - name: deleting nodes
+       command: kubectl delete node {{nodename}}
+     - name: taking break so that all pod can terminate
+       pause:
+           minutes: 2
+     - name: checking pods
+       shell: kubectl get pods --all-namespaces -o wide --field-selector spec.nodeName={{nodename}} | wc -l
+       register: x
+     - name: checking conditions
+       debug:
+          msg: "Please look at pod of this node there is some error"
+       failed_when: '"No resources found" not   in x.stderr'
+     - name: stating to move foward
+       debug:
+          msg: "now we can terminate instance success fully"
+- hosts: localhost
+  tasks:
+  vars_prompt:
+    - name: instance_id
+      prompt: What is your instance you want to terminate?
+      private: no
+#     - name: terminating instance
+#       command: aws ec2 terminate-instances --instance-ids {{instance_id}}
+#     - name: running shell script
+#        script: [path of sh file]
+
+
+
+
+...
